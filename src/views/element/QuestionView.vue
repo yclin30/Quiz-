@@ -6,11 +6,27 @@
         background-color: rgb(238, 241, 246);
         display: flex;
         align-items: center;
-        justify-content: center;
+        justify-content: space-between;
+        padding: 0 20px;
       "
     >
-      Quiz后台管理
+      <span>Quiz后台管理</span>
+      <div>
+        <el-dropdown @command="handleCommand">
+          <span
+            class="el-dropdown-link"
+            style="font-size: 16px; cursor: pointer"
+          >
+            {{ currentUser.userName
+            }}<i class="el-icon-arrow-down el-icon--right"></i>
+          </span>
+          <el-dropdown-menu slot="dropdown">
+            <el-dropdown-item command="logout">退出登录</el-dropdown-item>
+          </el-dropdown-menu>
+        </el-dropdown>
+      </div>
     </el-header>
+
     <el-container>
       <el-aside width="200px">
         <el-menu :default-openeds="['1']">
@@ -98,85 +114,63 @@
                     {{ scope.row.answer4Correct ? "✅" : "" }}
                   </p>
                 </div>
-                <div slot="reference" class="name-wrapper">
-                  <el-tag size="medium">{{
-                    truncate(scope.row.questionText, 25)
+                <div slot="reference" style="cursor: pointer">
+                  <el-tag type="success">{{
+                    truncate(scope.row.questionText, 30)
                   }}</el-tag>
                 </div>
               </el-popover>
             </template>
           </el-table-column>
 
-          <!-- 选项A -->
-          <el-table-column label="选项A" width="130">
+          <el-table-column label="选项A" width="150">
             <template slot-scope="scope">
-              <el-tag
-                :type="scope.row.answer1Correct ? 'success' : 'info'"
-                size="small"
+              {{ truncate(scope.row.answer1Text, 15) }}
+              <el-tag v-if="scope.row.answer1Correct" type="success" size="mini"
+                >✓</el-tag
               >
-                {{ truncate(scope.row.answer1Text, 12) }}
-              </el-tag>
             </template>
           </el-table-column>
 
-          <!-- 选项B -->
-          <el-table-column label="选项B" width="130">
+          <el-table-column label="选项B" width="150">
             <template slot-scope="scope">
-              <el-tag
-                :type="scope.row.answer2Correct ? 'success' : 'info'"
-                size="small"
+              {{ truncate(scope.row.answer2Text, 15) }}
+              <el-tag v-if="scope.row.answer2Correct" type="success" size="mini"
+                >✓</el-tag
               >
-                {{ truncate(scope.row.answer2Text, 12) }}
-              </el-tag>
             </template>
           </el-table-column>
 
-          <!-- 选项C -->
-          <el-table-column label="选项C" width="130">
+          <el-table-column label="选项C" width="150">
             <template slot-scope="scope">
-              <el-tag
-                :type="scope.row.answer3Correct ? 'success' : 'info'"
-                size="small"
+              {{ truncate(scope.row.answer3Text, 15) }}
+              <el-tag v-if="scope.row.answer3Correct" type="success" size="mini"
+                >✓</el-tag
               >
-                {{ truncate(scope.row.answer3Text, 12) }}
-              </el-tag>
             </template>
           </el-table-column>
 
-          <!-- 选项D -->
-          <el-table-column label="选项D" width="130">
+          <el-table-column label="选项D" width="150">
             <template slot-scope="scope">
-              <el-tag
-                :type="scope.row.answer4Correct ? 'success' : 'info'"
-                size="small"
+              {{ truncate(scope.row.answer4Text, 15) }}
+              <el-tag v-if="scope.row.answer4Correct" type="success" size="mini"
+                >✓</el-tag
               >
-                {{ truncate(scope.row.answer4Text, 12) }}
-              </el-tag>
             </template>
           </el-table-column>
 
-          <!-- 正确答案 -->
-          <el-table-column label="答案" width="70" align="center">
-            <template slot-scope="scope">
-              <el-tag type="success" size="medium">{{
-                getCorrectAnswer(scope.row)
-              }}</el-tag>
-            </template>
-          </el-table-column>
-
-          <!-- 操作 -->
-          <el-table-column label="操作" width="180">
+          <el-table-column label="操作" width="200">
             <template slot-scope="scope">
               <el-button
                 size="mini"
-                @click="handleEdit(scope.$index, scope.row)"
+                @click="handleEdit(scope.row)"
                 icon="el-icon-edit"
                 >编辑</el-button
               >
               <el-button
                 size="mini"
                 type="danger"
-                @click="handleDelete(scope.$index, scope.row)"
+                @click="handleDelete(scope.row)"
                 icon="el-icon-delete"
                 >删除</el-button
               >
@@ -205,92 +199,84 @@
           共找到 {{ tableData.length }} 条搜索结果
         </div>
 
-        <!-- 添加题目对话框 -->
+        <!-- 添加/编辑题目对话框 -->
         <el-dialog
-          title="添加题目"
+          :title="dialogTitle"
           :visible.sync="dialogFormVisible"
-          width="600px"
+          width="700px"
         >
-          <el-form :model="form" :rules="rules" ref="questionForm">
-            <el-form-item
-              label="题目"
-              :label-width="formLabelWidth"
-              prop="question"
-            >
+          <el-form
+            :model="form"
+            :rules="rules"
+            ref="questionForm"
+            label-width="100px"
+          >
+            <el-form-item label="题目" prop="questionText">
               <el-input
-                v-model="form.question"
-                autocomplete="off"
-                placeholder="请输入题目内容"
                 type="textarea"
+                v-model="form.questionText"
+                placeholder="请输入题目内容"
                 :rows="3"
               ></el-input>
             </el-form-item>
-            <el-form-item
-              label="选项A"
-              :label-width="formLabelWidth"
-              prop="optiona"
-            >
+
+            <el-form-item label="选项 A" prop="answer1Text">
               <el-input
-                v-model="form.optiona"
-                autocomplete="off"
-                placeholder="请输入选项A"
-              ></el-input>
-            </el-form-item>
-            <el-form-item
-              label="选项B"
-              :label-width="formLabelWidth"
-              prop="optionb"
-            >
-              <el-input
-                v-model="form.optionb"
-                autocomplete="off"
-                placeholder="请输入选项B"
-              ></el-input>
-            </el-form-item>
-            <el-form-item
-              label="选项C"
-              :label-width="formLabelWidth"
-              prop="optionc"
-            >
-              <el-input
-                v-model="form.optionc"
-                autocomplete="off"
-                placeholder="请输入选项C"
-              ></el-input>
-            </el-form-item>
-            <el-form-item
-              label="选项D"
-              :label-width="formLabelWidth"
-              prop="optiond"
-            >
-              <el-input
-                v-model="form.optiond"
-                autocomplete="off"
-                placeholder="请输入选项D"
-              ></el-input>
-            </el-form-item>
-            <el-form-item
-              label="正确答案"
-              :label-width="formLabelWidth"
-              prop="answer"
-            >
-              <el-select
-                v-model="form.answer"
-                placeholder="请选择正确答案"
-                style="width: 100%"
+                v-model="form.answer1Text"
+                placeholder="请输入选项A内容"
               >
-                <el-option label="A" value="a"></el-option>
-                <el-option label="B" value="b"></el-option>
-                <el-option label="C" value="c"></el-option>
-                <el-option label="D" value="d"></el-option>
-              </el-select>
+                <el-checkbox slot="append" v-model="form.answer1Correct"
+                  >正确答案</el-checkbox
+                >
+              </el-input>
             </el-form-item>
+
+            <el-form-item label="选项 B" prop="answer2Text">
+              <el-input
+                v-model="form.answer2Text"
+                placeholder="请输入选项B内容"
+              >
+                <el-checkbox slot="append" v-model="form.answer2Correct"
+                  >正确答案</el-checkbox
+                >
+              </el-input>
+            </el-form-item>
+
+            <el-form-item label="选项 C" prop="answer3Text">
+              <el-input
+                v-model="form.answer3Text"
+                placeholder="请输入选项C内容"
+              >
+                <el-checkbox slot="append" v-model="form.answer3Correct"
+                  >正确答案</el-checkbox
+                >
+              </el-input>
+            </el-form-item>
+
+            <el-form-item label="选项 D" prop="answer4Text">
+              <el-input
+                v-model="form.answer4Text"
+                placeholder="请输入选项D内容"
+              >
+                <el-checkbox slot="append" v-model="form.answer4Correct"
+                  >正确答案</el-checkbox
+                >
+              </el-input>
+            </el-form-item>
+
+            <el-alert
+              title="提示：至少选择一个正确答案"
+              type="info"
+              :closable="false"
+              style="margin-bottom: 10px"
+            ></el-alert>
           </el-form>
+
           <div slot="footer" class="dialog-footer">
             <el-button @click="dialogFormVisible = false">取 消</el-button>
             <el-button
               type="primary"
-              @click="confirmAdd"
+              @click="confirmSubmit"
               :loading="submitLoading"
               >确 定</el-button
             >
@@ -305,6 +291,8 @@
 import {
   getQuestionList,
   addQuestion,
+  updateQuestion,
+  getQuestionById,
   deleteQuestion,
   searchQuestion,
 } from "@/api/question";
@@ -312,6 +300,9 @@ import {
 export default {
   data() {
     return {
+      currentUser: {
+        userName: "",
+      },
       formInline: {
         question: "",
       },
@@ -319,26 +310,39 @@ export default {
       loading: false,
       submitLoading: false,
       dialogFormVisible: false,
-      isSearching: false, // 是否在搜索模式
+      isSearching: false,
+      isEditMode: false,
+      dialogTitle: "添加题目",
       form: {
-        question: "",
-        optiona: "",
-        optionb: "",
-        optionc: "",
-        optiond: "",
-        answer: "",
+        id: null,
+        questionText: "",
+        answer1Text: "",
+        answer1Correct: false,
+        answer2Text: "",
+        answer2Correct: false,
+        answer3Text: "",
+        answer3Correct: false,
+        answer4Text: "",
+        answer4Correct: false,
       },
       rules: {
-        question: [{ required: true, message: "请输入题目", trigger: "blur" }],
-        optiona: [{ required: true, message: "请输入选项A", trigger: "blur" }],
-        optionb: [{ required: true, message: "请输入选项B", trigger: "blur" }],
-        optionc: [{ required: true, message: "请输入选项C", trigger: "blur" }],
-        optiond: [{ required: true, message: "请输入选项D", trigger: "blur" }],
-        answer: [
-          { required: true, message: "请选择正确答案", trigger: "change" },
+        questionText: [
+          { required: true, message: "请输入题目内容", trigger: "blur" },
+          { min: 5, message: "题目内容不能少于5个字符", trigger: "blur" },
+        ],
+        answer1Text: [
+          { required: true, message: "请输入选项A内容", trigger: "blur" },
+        ],
+        answer2Text: [
+          { required: true, message: "请输入选项B内容", trigger: "blur" },
+        ],
+        answer3Text: [
+          { required: true, message: "请输入选项C内容", trigger: "blur" },
+        ],
+        answer4Text: [
+          { required: true, message: "请输入选项D内容", trigger: "blur" },
         ],
       },
-      formLabelWidth: "120px",
       pagination: {
         page: 1,
         pageSize: 10,
@@ -348,9 +352,37 @@ export default {
   },
   mounted() {
     this.loadQuestionList();
+    this.loadCurrentUser();
   },
   methods: {
-    // 加载题目列表
+    loadCurrentUser() {
+      const userInfo = localStorage.getItem("userInfo");
+      if (userInfo) {
+        this.currentUser = JSON.parse(userInfo);
+      }
+    },
+
+    handleCommand(command) {
+      if (command === "logout") {
+        this.handleLogout();
+      }
+    },
+
+    handleLogout() {
+      this.$confirm("确定要退出登录吗？", "提示", {
+        confirmButtonText: "确定",
+        cancelButtonText: "取消",
+        type: "warning",
+      })
+        .then(() => {
+          localStorage.removeItem("token");
+          localStorage.removeItem("userInfo");
+          this.$message.success("已退出登录");
+          this.$router.push("/login");
+        })
+        .catch(() => {});
+    },
+
     async loadQuestionList() {
       this.loading = true;
       try {
@@ -369,13 +401,11 @@ export default {
       }
     },
 
-    // 分页切换
     handlePageChange(page) {
       this.pagination.page = page;
       this.loadQuestionList();
     },
 
-    // 查询题目
     async onSubmit() {
       if (!this.formInline.question.trim()) {
         this.resetSearch();
@@ -406,7 +436,6 @@ export default {
       }
     },
 
-    // 重置搜索，返回列表
     resetSearch() {
       this.isSearching = false;
       this.formInline.question = "";
@@ -414,72 +443,128 @@ export default {
       this.loadQuestionList();
     },
 
-    // 打开添加对话框
     onAddNewQuestion() {
+      this.isEditMode = false;
+      this.dialogTitle = "添加题目";
       this.form = {
-        question: "",
-        optiona: "",
-        optionb: "",
-        optionc: "",
-        optiond: "",
-        answer: "",
+        id: null,
+        questionText: "",
+        answer1Text: "",
+        answer1Correct: false,
+        answer2Text: "",
+        answer2Correct: false,
+        answer3Text: "",
+        answer3Correct: false,
+        answer4Text: "",
+        answer4Correct: false,
       };
       this.dialogFormVisible = true;
-      // 清除表单验证
       this.$nextTick(() => {
         this.$refs.questionForm && this.$refs.questionForm.clearValidate();
       });
     },
 
-    // 确认添加题目
-    confirmAdd() {
+    async handleEdit(row) {
+      this.isEditMode = true;
+      this.dialogTitle = "编辑题目";
+
+      try {
+        const res = await getQuestionById(row.id);
+        this.form = {
+          id: res.data.id,
+          questionText: res.data.questionText,
+          answer1Text: res.data.answer1Text,
+          answer1Correct: res.data.answer1Correct,
+          answer2Text: res.data.answer2Text,
+          answer2Correct: res.data.answer2Correct,
+          answer3Text: res.data.answer3Text,
+          answer3Correct: res.data.answer3Correct,
+          answer4Text: res.data.answer4Text,
+          answer4Correct: res.data.answer4Correct,
+        };
+        this.dialogFormVisible = true;
+        this.$nextTick(() => {
+          this.$refs.questionForm && this.$refs.questionForm.clearValidate();
+        });
+      } catch (error) {
+        console.error("获取题目信息失败：", error);
+        this.$message.error("获取题目信息失败");
+      }
+    },
+
+    confirmSubmit() {
       this.$refs.questionForm.validate(async (valid) => {
         if (!valid) {
           return false;
         }
 
+        // 验证至少有一个正确答案
+        const hasCorrectAnswer =
+          this.form.answer1Correct ||
+          this.form.answer2Correct ||
+          this.form.answer3Correct ||
+          this.form.answer4Correct;
+
+        if (!hasCorrectAnswer) {
+          this.$message.error("请至少选择一个正确答案");
+          return false;
+        }
+
         this.submitLoading = true;
         try {
-          await addQuestion(this.form);
-          this.$message.success("添加成功");
+          if (this.isEditMode) {
+            // 编辑题目
+            await updateQuestion(this.form);
+            this.$message.success("更新成功");
+          } else {
+            // 添加题目（需要转换格式）
+            await addQuestion({
+              question: this.form.questionText,
+              optiona: this.form.answer1Text,
+              optionb: this.form.answer2Text,
+              optionc: this.form.answer3Text,
+              optiond: this.form.answer4Text,
+              answer: this.getCorrectAnswerLetter(),
+            });
+            this.$message.success("添加成功");
+          }
+
           this.dialogFormVisible = false;
 
-          // 如果在搜索模式，返回列表
           if (this.isSearching) {
             this.resetSearch();
           } else {
             this.loadQuestionList();
           }
         } catch (error) {
-          console.error("添加失败：", error);
+          console.error("操作失败：", error);
         } finally {
           this.submitLoading = false;
         }
       });
     },
 
-    // 编辑题目
-    handleEdit(index, row) {
-      this.$message.info(`编辑功能待实现，题目ID: ${row.id}`);
+    // 获取正确答案的字母（用于添加题目）
+    getCorrectAnswerLetter() {
+      const answers = [];
+      if (this.form.answer1Correct) answers.push("a");
+      if (this.form.answer2Correct) answers.push("b");
+      if (this.form.answer3Correct) answers.push("c");
+      if (this.form.answer4Correct) answers.push("d");
+      return answers.join(",");
     },
 
-    // 删除题目
-    async handleDelete(index, row) {
-      this.$confirm(
-        `确定要删除题目 "${this.truncate(row.questionText, 20)}" 吗？`,
-        "提示",
-        {
-          confirmButtonText: "确定",
-          cancelButtonText: "取消",
-          type: "warning",
-        }
-      )
+    async handleDelete(row) {
+      this.$confirm(`确定要删除这道题目吗？`, "提示", {
+        confirmButtonText: "确定",
+        cancelButtonText: "取消",
+        type: "warning",
+      })
         .then(async () => {
           try {
             await deleteQuestion(row.id);
             this.$message.success("删除成功");
 
-            // 如果在搜索模式，刷新搜索结果
             if (this.isSearching) {
               this.onSubmit();
             } else {
@@ -493,15 +578,6 @@ export default {
         .catch(() => {});
     },
 
-    // 获取正确答案（A/B/C/D）
-    getCorrectAnswer(row) {
-      if (row.answer1Correct) return "A";
-      if (row.answer2Correct) return "B";
-      if (row.answer3Correct) return "C";
-      if (row.answer4Correct) return "D";
-      return "-";
-    },
-
     // 截断文本
     truncate(text, length) {
       if (!text) return "";
@@ -512,7 +588,7 @@ export default {
 </script>
 
 <style scoped>
-.el-header {
+. el-header {
   background-color: #b3c0d1;
   color: #333;
 }

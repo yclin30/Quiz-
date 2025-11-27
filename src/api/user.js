@@ -8,7 +8,6 @@ export function getUserList(params) {
   })
 }
 
-// ⚠️ 修改这个函数
 export function login(data) {
   return request({
     url: '/user/login',
@@ -20,9 +19,6 @@ export function login(data) {
   })
 }
 
-/**
- * 获取当前用户信息
- */
 export function getCurrentUser() {
   return request({
     url: '/user/current',
@@ -30,21 +26,63 @@ export function getCurrentUser() {
   })
 }
 
-/**
- * 用户注册
- */
 export function register(data) {
   return request({
     url: '/user/register',
     method: 'post',
     data: {
       userName: data.userName,
-      userPassword: data.userPassword,
+      userPassword: data. userPassword,
       checkPassword: data.checkPassword
     }
   })
 }
 
+export function addUser(data) {
+  return request({
+    url: '/user/add',
+    method: 'post',
+    data: {
+      userName: data.userName,
+      userPassword: data. userPassword,
+      checkPassword: data.checkPassword,
+      userRole: data.userRole
+    }
+  })
+}
+
+/**
+ * 🆕 更新用户信息
+ */
+export function updateUser(data) {
+  return request({
+    url: '/user/update',
+    method: 'put',
+    data: {
+      id: data.id,
+      userName: data.userName,
+      userPassword: data.userPassword,
+      userRole: data.userRole
+    }
+  })
+}
+
+/**
+ * 🆕 根据ID获取用户详情
+ */
+export function getUserById(id) {
+  return request({
+    url: `/user/${id}`,
+    method: 'get'
+  })
+}
+
+export function resetPassword(id) {
+  return request({
+    url: `/user/resetPassword/${id}`,
+    method: 'put'
+  })
+}
 
 export function deleteUser(id) {
   return request({

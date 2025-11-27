@@ -35,10 +35,14 @@
             >
             <el-menu-item-group>
               <el-menu-item index="1-1">
-                <router-link to="/user">用户管理</router-link>
+                <router-link to="/user" class="router-link"
+                  >用户管理</router-link
+                >
               </el-menu-item>
               <el-menu-item index="1-2">
-                <router-link to="/question">题目管理</router-link>
+                <router-link to="/question" class="router-link"
+                  >题目管理</router-link
+                >
               </el-menu-item>
             </el-menu-item-group>
           </el-submenu>
@@ -59,6 +63,7 @@
               placeholder="请输入用户名"
               style="width: 150px"
               clearable
+              @keyup.enter="onSubmit"
             ></el-input>
           </el-form-item>
           <el-form-item>
@@ -112,7 +117,7 @@
             </template>
           </el-table-column>
 
-          <el-table-column label="操作">
+          <el-table-column label="操作" width="300">
             <template slot-scope="scope">
               <el-button
                 size="mini"
@@ -122,9 +127,17 @@
               >
               <el-button
                 size="mini"
+                type="warning"
+                @click="handleResetPassword(scope.row)"
+                icon="el-icon-refresh"
+                >重置密码</el-button
+              >
+              <el-button
+                size="mini"
                 type="danger"
                 @click="handleDelete(scope.$index, scope.row)"
                 icon="el-icon-delete"
+                :disabled="scope.row.id === currentUser.id"
                 >删除</el-button
               >
             </template>
@@ -152,8 +165,12 @@
           共找到 {{ tableData.length }} 条搜索结果
         </div>
 
-        <!-- 添加用户对话框 -->
-        <el-dialog title="添加用户" :visible.sync="dialogFormVisible">
+        <!-- 添加/编辑用户对话框 -->
+        <el-dialog
+          :title="dialogTitle"
+          :visible.sync="dialogFormVisible"
+          width="500px"
+        >
           <el-form :model="form" :rules="rules" ref="userForm">
             <el-form-item
               label="用户名"
@@ -175,11 +192,14 @@
                 v-model="form.password"
                 type="password"
                 autocomplete="off"
-                placeholder="请输入密码（至少8位）"
+                :placeholder="
+                  isEditMode ? '不修改请留空' : '请输入密码（至少8位）'
+                "
                 show-password
               ></el-input>
             </el-form-item>
             <el-form-item
+              v-if="!isEditMode"
               label="确认密码"
               :label-width="formLabelWidth"
               prop="checkPassword"
@@ -192,12 +212,26 @@
                 show-password
               ></el-input>
             </el-form-item>
+            <el-form-item
+              label="用户角色"
+              :label-width="formLabelWidth"
+              prop="userRole"
+            >
+              <el-select
+                v-model="form.userRole"
+                placeholder="请选择用户角色"
+                style="width: 100%"
+              >
+                <el-option label="普通用户" :value="0"></el-option>
+                <el-option label="管理员" :value="1"></el-option>
+              </el-select>
+            </el-form-item>
           </el-form>
           <div slot="footer" class="dialog-footer">
             <el-button @click="dialogFormVisible = false">取 消</el-button>
             <el-button
               type="primary"
-              @click="confirmAdd"
+              @click="confirmSubmit"
               :loading="submitLoading"
               >确 定</el-button
             >
@@ -209,12 +243,55 @@
 </template>
 
 <script>
-import { getUserList, register, deleteUser, searchUsers } from "@/api/user";
+import {
+  getUserList,
+  addUser,
+  updateUser,
+  getUserById,
+  deleteUser,
+  searchUsers,
+  resetPassword,
+} from "@/api/user";
 
 export default {
   data() {
+    // 密码验证函数
+    const validatePassword = (rule, value, callback) => {
+      if (this.isEditMode) {
+        if (value && value.length < 8) {
+          callback(new Error("密码长度不能小于8位"));
+        } else {
+          callback();
+        }
+      } else {
+        if (!value) {
+          callback(new Error("请输入密码"));
+        } else if (value.length < 8) {
+          callback(new Error("密码长度不能小于8位"));
+        } else {
+          callback();
+        }
+      }
+    };
+
+    // 确认密码验证函数
+    const validateCheckPassword = (rule, value, callback) => {
+      if (this.isEditMode) {
+        callback();
+      } else {
+        if (value === "") {
+          callback(new Error("请再次输入密码"));
+        } else if (value !== this.form.password) {
+          callback(new Error("两次输入密码不一致"));
+        } else {
+          callback();
+        }
+      }
+    };
+
     return {
       currentUser: {
+        id: null,
         userName: "",
       },
       formInline: {
@@ -224,11 +301,15 @@ export default {
       loading: false,
       submitLoading: false,
       dialogFormVisible: false,
-      isSearching: false, // 是否在搜索模式
+      isSearching: false,
+      isEditMode: false,
+      dialogTitle: "添加用户",
       form: {
+        id: null,
         userName: "",
         password: "",
         checkPassword: "",
+        userRole: 0,
       },
       rules: {
         userName: [
@@ -236,12 +317,19 @@ export default {
           { min: 4, message: "用户名长度不能小于4位", trigger: "blur" },
         ],
         password: [
-          { required: true, message: "请输入密码", trigger: "blur" },
-          { min: 8, message: "密码长度不能小于8位", trigger: "blur" },
+          {
+            validator: validatePassword,
+            trigger: "blur",
+          },
         ],
         checkPassword: [
-          { required: true, message: "请再次输入密码", trigger: "blur" },
-          { validator: this.validateCheckPassword, trigger: "blur" },
+          {
+            validator: validateCheckPassword,
+            trigger: "blur",
+          },
+        ],
+        userRole: [
+          { required: true, message: "请选择用户角色", trigger: "change" },
         ],
       },
       formLabelWidth: "120px",
@@ -250,6 +338,7 @@ export default {
         pageSize: 5,
         total: 0,
       },
+      searchTimer: null,
     };
   },
   mounted() {
@@ -257,17 +346,6 @@ export default {
     this.loadCurrentUser();
   },
   methods: {
-    // 验证确认密码
-    validateCheckPassword(rule, value, callback) {
-      if (value === "") {
-        callback(new Error("请再次输入密码"));
-      } else if (value !== this.form.password) {
-        callback(new Error("两次输入密码不一致"));
-      } else {
-        callback();
-      }
-    },
-    // 加载当前用户信息
     loadCurrentUser() {
       const userInfo = localStorage.getItem("userInfo");
       if (userInfo) {
@@ -275,14 +353,12 @@ export default {
       }
     },
 
-    // 处理下拉菜单命令
     handleCommand(command) {
       if (command === "logout") {
         this.handleLogout();
       }
     },
 
-    // 退出登录
     handleLogout() {
       this.$confirm("确定要退出登录吗？", "提示", {
         confirmButtonText: "确定",
@@ -298,7 +374,6 @@ export default {
         .catch(() => {});
     },
 
-    // 加载用户列表
     async loadUserList() {
       this.loading = true;
       try {
@@ -307,54 +382,67 @@ export default {
           pageSize: this.pagination.pageSize,
         });
 
-        this.tableData = res.data.rows || [];
-        this.pagination.total = res.data.total || 0;
+        // 验证数据格式
+        if (res.data && Array.isArray(res.data.rows)) {
+          this.tableData = res.data.rows;
+          this.pagination.total = res.data.total || 0;
+        } else {
+          this.tableData = [];
+          this.pagination.total = 0;
+          console.warn("返回数据格式异常:", res.data);
+        }
       } catch (error) {
         console.error("加载失败：", error);
         this.$message.error("加载用户列表失败");
+        this.tableData = [];
+        this.pagination.total = 0;
       } finally {
         this.loading = false;
       }
     },
 
-    // 分页切换
     handlePageChange(page) {
       this.pagination.page = page;
       this.loadUserList();
     },
 
-    // 查询用户
     async onSubmit() {
       if (!this.formInline.user.trim()) {
         this.resetSearch();
         return;
       }
 
-      this.loading = true;
-      this.isSearching = true;
-      try {
-        const res = await searchUsers(this.formInline.user);
+      // 防抖处理，避免频繁请求
+      if (this.searchTimer) {
+        clearTimeout(this.searchTimer);
+      }
 
-        if (res.data && Array.isArray(res.data)) {
-          this.tableData = res.data;
-          if (res.data.length > 0) {
-            this.$message.success(`找到 ${res.data.length} 条结果`);
+      this.searchTimer = setTimeout(async () => {
+        this.loading = true;
+        this.isSearching = true;
+        try {
+          const res = await searchUsers(this.formInline.user.trim());
+
+          if (res.data && Array.isArray(res.data)) {
+            this.tableData = res.data;
+            if (res.data.length > 0) {
+              this.$message.success(`找到 ${res.data.length} 条结果`);
+            } else {
+              this.$message.info("未找到匹配的用户");
+            }
           } else {
+            this.tableData = [];
             this.$message.info("未找到匹配的用户");
           }
-        } else {
-          this.tableData = [];
-          this.$message.info("未找到匹配的用户");
+        } catch (error) {
+          console.error("查询失败：", error);
+          this.$message.error("查询失败");
+        } finally {
+          this.loading = false;
         }
-      } catch (error) {
-        console.error("查询失败：", error);
-        this.$message.error("查询失败");
-      } finally {
-        this.loading = false;
-      }
+      }, 500);
     },
 
-    // 重置搜索，返回列表
     resetSearch() {
       this.isSearching = false;
       this.formInline.user = "";
@@ -362,22 +450,46 @@ export default {
       this.loadUserList();
     },
 
-    // 打开添加对话框
     onAddNewUser() {
+      this.isEditMode = false;
+      this.dialogTitle = "添加用户";
       this.form = {
+        id: null,
         userName: "",
         password: "",
         checkPassword: "",
+        userRole: 0,
       };
       this.dialogFormVisible = true;
-      // 清除表单验证
       this.$nextTick(() => {
         this.$refs.userForm && this.$refs.userForm.clearValidate();
       });
     },
 
-    // 确认添加用户
-    confirmAdd() {
+    async handleEdit(index, row) {
+      this.isEditMode = true;
+      this.dialogTitle = "编辑用户";
+
+      try {
+        const res = await getUserById(row.id);
+        this.form = {
+          id: res.data.id,
+          userName: res.data.userName,
+          password: "",
+          checkPassword: "",
+          userRole: res.data.userRole,
+        };
+        this.dialogFormVisible = true;
+        this.$nextTick(() => {
+          this.$refs.userForm && this.$refs.userForm.clearValidate();
+        });
+      } catch (error) {
+        console.error("获取用户信息失败：", error);
+        this.$message.error("获取用户信息失败");
+      }
+    },
+
+    confirmSubmit() {
       this.$refs.userForm.validate(async (valid) => {
         if (!valid) {
           return false;
@@ -385,60 +497,93 @@ export default {
 
         this.submitLoading = true;
         try {
-          await register({
-            userName: this.form.userName,
-            userPassword: this.form.password,
-            checkPassword: this.form.checkPassword,
-          });
-          this.$message.success("添加成功");
+          if (this.isEditMode) {
+            await updateUser({
+              id: this.form.id,
+              userName: this.form.userName,
+              userPassword: this.form.password || undefined, // 密码为空时不更新
+              userRole: this.form.userRole,
+            });
+            this.$message.success("更新成功");
+          } else {
+            await addUser({
+              userName: this.form.userName,
+              userPassword: this.form.password,
+              checkPassword: this.form.checkPassword,
+              userRole: this.form.userRole,
+            });
+            this.$message.success("添加成功");
+          }
+
           this.dialogFormVisible = false;
 
-          // 如果在搜索模式，返回列表
           if (this.isSearching) {
             this.resetSearch();
           } else {
             this.loadUserList();
           }
         } catch (error) {
-          console.error("添加失败：", error);
+          console.error("操作失败：", error);
+          const errorMsg = error.response?.data?.message || "操作失败";
+          this.$message.error(errorMsg);
         } finally {
           this.submitLoading = false;
         }
       });
     },
 
-    // 编辑用户
-    handleEdit(index, row) {
-      this.$message.info(`编辑功能待实现，用户ID: ${row.id}`);
-    },
-
-    // 删除用户
-    async handleDelete(index, row) {
-      this.$confirm(`确定要删除用户 "${row.userName}" 吗？`, "提示", {
-        confirmButtonText: "确定",
-        cancelButtonText: "取消",
-        type: "warning",
-      })
-        .then(async () => {
-          try {
-            await deleteUser(row.id);
-            this.$message.success("删除成功");
-
-            // 如果在搜索模式，刷新搜索结果
-            if (this.isSearching) {
-              this.onSubmit();
-            } else {
-              this.loadUserList();
-            }
-          } catch (error) {
-            console.error("删除失败：", error);
-            this.$message.error("删除失败");
+    async handleResetPassword(row) {
+      try {
+        await this.$confirm(
+          `确定要将用户 "${row.userName}" 的密码重置为 "123456" 吗？`,
+          "提示",
+          {
+            confirmButtonText: "确定",
+            cancelButtonText: "取消",
+            type: "warning",
           }
-        })
-        .catch(() => {});
+        );
+
+        await resetPassword(row.id);
+        this.$message.success("密码已重置为：123456");
+      } catch (error) {
+        if (error !== "cancel") {
+          console.error("重置失败：", error);
+          this.$message.error("重置密码失败");
+        }
+      }
     },
 
-    // 格式化日期
+    async handleDelete(index, row) {
+      // 检查是否删除自己
+      if (row.id === this.currentUser.id) {
+        this.$message.warning("不能删除自己的账户");
+        return;
+      }
+
+      try {
+        await this.$confirm(`确定要删除用户 "${row.userName}" 吗？`, "提示", {
+          confirmButtonText: "确定",
+          cancelButtonText: "取消",
+          type: "warning",
+        });
+
+        await deleteUser(row.id);
+        this.$message.success("删除成功");
+
+        if (this.isSearching) {
+          this.onSubmit();
+        } else {
+          this.loadUserList();
+        }
+      } catch (error) {
+        if (error !== "cancel") {
+          console.error("删除失败：", error);
+          this.$message.error("删除失败");
+        }
+      }
+    },
+
     formatDate(dateString) {
       if (!dateString) return "-";
       const date = new Date(dateString);
@@ -488,5 +633,47 @@ export default {
 .demo-form-inline :deep(.el-form-item__content) {
   display: inline-flex;
   align-items: center;
+}
+
+/* 路由链接样式 */
+.router-link {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.el-menu-item a {
+  text-decoration: none;
+  color: inherit;
+}
+
+/* 响应式样式 */
+@media (max-width: 768px) {
+  .demo-form-inline :deep(.el-form-item) {
+    margin-right: 10px;
+    margin-bottom: 10px;
+  }
+
+  .el-table-column {
+    min-width: 100px;
+  }
+
+  .el-header {
+    font-size: 28px !important;
+    padding: 0 10px !important;
+  }
+}
+
+/* 下拉菜单样式优化 */
+.el-dropdown-link {
+  display: flex;
+  align-items: center;
+}
+
+/* 表格操作按钮间距 */
+.el-table .el-button {
+  margin: 2px;
 }
 </style>
