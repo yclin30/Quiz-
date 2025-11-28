@@ -1,12 +1,7 @@
 <template>
   <div class="login-container">
     <el-card class="login-card">
-      <div slot="header" class="clearfix">
-        <span style="font-size: 24px; font-weight: bold"
-          >Quiz 后台管理系统</span
-        >
-      </div>
-
+      <h2 class="login-title">Quiz 登录</h2>
       <el-form
         :model="loginForm"
         :rules="rules"
@@ -20,31 +15,34 @@
             clearable
           ></el-input>
         </el-form-item>
-
         <el-form-item label="密码" prop="userPassword">
           <el-input
             v-model="loginForm.userPassword"
             type="password"
             placeholder="请输入密码"
             show-password
-            @keyup.enter.native="handleLogin"
+            @keyup.enter.
+            native="handleLogin"
           ></el-input>
         </el-form-item>
-
         <el-form-item>
           <el-button
             type="primary"
             @click="handleLogin"
             :loading="loading"
             style="width: 100%"
-            >登 录</el-button
           >
+            登录
+          </el-button>
         </el-form-item>
-
         <el-form-item>
-          <el-button type="text" @click="goToRegister"
-            >还没有账号？去注册</el-button
+          <el-button
+            type="text"
+            @click="goToRegister"
+            style="width: 100%; text-align: center"
           >
+            还没有账号？立即注册
+          </el-button>
         </el-form-item>
       </el-form>
     </el-card>
@@ -55,6 +53,7 @@
 import { login } from "@/api/user";
 
 export default {
+  name: "LoginView",
   data() {
     return {
       loginForm: {
@@ -73,7 +72,7 @@ export default {
     };
   },
   methods: {
-    handleLogin() {
+    async handleLogin() {
       this.$refs.loginForm.validate(async (valid) => {
         if (!valid) {
           return false;
@@ -83,16 +82,24 @@ export default {
         try {
           const res = await login(this.loginForm);
 
-          // 保存 Token 和用户信息
+          // 保存 token 和用户信息
           localStorage.setItem("token", res.data.token);
           localStorage.setItem("userInfo", JSON.stringify(res.data.user));
 
           this.$message.success("登录成功");
 
-          // 跳转到用户管理页面
-          this.$router.push("/user");
+          // 根据用户角色跳转，使用 replace 而不是 push
+          const userRole = res.data.user.userRole;
+          if (userRole === 1) {
+            // 管理员跳转到用户管理
+            this.$router.replace("/user");
+          } else {
+            // 普通用户跳转到答题页面
+            this.$router.replace("/quiz");
+          }
         } catch (error) {
           console.error("登录失败：", error);
+          this.$message.error("登录失败，请检查用户名和密码");
         } finally {
           this.loading = false;
         }
@@ -111,12 +118,19 @@ export default {
   display: flex;
   justify-content: center;
   align-items: center;
-  height: 100vh;
+  min-height: 100vh;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
 .login-card {
   width: 400px;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.3);
+  max-width: 90%;
+}
+
+.login-title {
+  text-align: center;
+  color: #333;
+  margin-bottom: 30px;
+  font-size: 24px;
 }
 </style>
